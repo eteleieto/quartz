@@ -1,214 +1,272 @@
-import micromorph from "micromorph"
-import { FullSlug, RelativeURL, getFullSlug, normalizeRelativeURLs } from "../../util/path"
+import { normalizeRelativeURLs } from "../../util/path"
 import { fetchCanonical } from "./util"
 
-// adapted from `micromorph`
-// https://github.com/natemoo-re/micromorph
-const NODE_TYPE_ELEMENT = 1
-let announcer = document.createElement("route-announcer")
-const isElement = (target: EventTarget | null): target is Element =>
-  (target as Node)?.nodeType === NODE_TYPE_ELEMENT
+// Sliding Panes Router Implementation
+
+const CONTAINER_SELECTOR = ".center"
+const PANE_SELECTOR = ".sliding-pane"
+const PANE_WIDTH = 40 // px, width of the spine
+
+function getContainer() {
+  return document.querySelector(CONTAINER_SELECTOR)
+}
+
+function getPanes() {
+  const container = getContainer()
+  return container ? Array.from(container.querySelectorAll(PANE_SELECTOR)) : []
+}
+
+function updatePanePositions() {
+  const panes = getPanes()
+  panes.forEach((pane, index) => {
+    const p = pane as HTMLElement
+    // Set sticky left position
+    p.style.left = `${index * PANE_WIDTH}px`
+    // Ensure z-index is correct so later panes slide over earlier ones
+    p.style.zIndex = `${5 + index}`
+  })
+
+  // Check obscured state immediately after position update
+  checkObscured()
+}
+
+function createSpine(doc: Document | HTMLElement, title?: string) {
+  const spine = document.createElement("div")
+  spine.className = "sliding-pane-spine"
+  spine.innerText = title || doc.querySelector("h1")?.innerText || "Untitled"
+  spine.onclick = (e) => {
+    e.stopPropagation()
+    const pane = (e.target as HTMLElement).closest(PANE_SELECTOR)
+    pane?.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+  }
+  return spine
+}
+
+function checkObscured() {
+  const container = getContainer() as HTMLElement
+  if (!container) return
+
+  const panes = getPanes()
+
+  panes.forEach((pane, index) => {
+    const p = pane as HTMLElement
+    const rect = p.getBoundingClientRect()
+
+    let isObscured = false
+    if (index < panes.length - 1) {
+      const nextPane = panes[index + 1] as HTMLElement
+      const nextRect = nextPane.getBoundingClientRect()
+
+      const visibleWidth = nextRect.left - rect.left
+
+      if (visibleWidth < 150) {
+        isObscured = true
+      }
+    }
+
+    if (isObscured) {
+      p.classList.add("obscured")
+    } else {
+      p.classList.remove("obscured")
+    }
+  })
+}
+
+// Helper to determine if a URL is local and should be handled
+// Copied from original spa.inline.ts
 const isLocalUrl = (href: string) => {
   try {
     const url = new URL(href)
     if (window.location.origin === url.origin) {
       return true
     }
-  } catch (e) {}
+  } catch (e) { }
   return false
 }
 
-const isSamePage = (url: URL): boolean => {
-  const sameOrigin = url.origin === window.location.origin
-  const samePath = url.pathname === window.location.pathname
-  return sameOrigin && samePath
-}
+// Update the URL to reflect current stack
+function updateUrlState() {
+  const panes = getPanes()
+  if (panes.length === 0) return
 
-const getOpts = ({ target }: Event): { url: URL; scroll?: boolean } | undefined => {
-  if (!isElement(target)) return
-  if (target.attributes.getNamedItem("target")?.value === "_blank") return
-  const a = target.closest("a")
-  if (!a) return
-  if ("routerIgnore" in a.dataset) return
-  const { href } = a
-  if (!isLocalUrl(href)) return
-  return { url: new URL(href), scroll: "routerNoscroll" in a.dataset ? false : undefined }
-}
+  // Store stacked slugs in URL
+  const stackedSlugs = panes.slice(1).map(p => (p as HTMLElement).dataset.slug).filter(Boolean)
+  const url = new URL(window.location.href)
 
-function notifyNav(url: FullSlug) {
-  const event: CustomEventMap["nav"] = new CustomEvent("nav", { detail: { url } })
-  document.dispatchEvent(event)
-}
-
-const cleanupFns: Set<(...args: any[]) => void> = new Set()
-window.addCleanup = (fn) => cleanupFns.add(fn)
-
-function startLoading() {
-  const loadingBar = document.createElement("div")
-  loadingBar.className = "navigation-progress"
-  loadingBar.style.width = "0"
-  if (!document.body.contains(loadingBar)) {
-    document.body.appendChild(loadingBar)
-  }
-
-  setTimeout(() => {
-    loadingBar.style.width = "80%"
-  }, 100)
-}
-
-let isNavigating = false
-let p: DOMParser
-async function _navigate(url: URL, isBack: boolean = false) {
-  isNavigating = true
-  startLoading()
-  p = p || new DOMParser()
-  const contents = await fetchCanonical(url)
-    .then((res) => {
-      const contentType = res.headers.get("content-type")
-      if (contentType?.startsWith("text/html")) {
-        return res.text()
-      } else {
-        window.location.assign(url)
-      }
-    })
-    .catch(() => {
-      window.location.assign(url)
-    })
-
-  if (!contents) return
-
-  // notify about to nav
-  const event: CustomEventMap["prenav"] = new CustomEvent("prenav", { detail: {} })
-  document.dispatchEvent(event)
-
-  // cleanup old
-  cleanupFns.forEach((fn) => fn())
-  cleanupFns.clear()
-
-  const html = p.parseFromString(contents, "text/html")
-  normalizeRelativeURLs(html, url)
-
-  let title = html.querySelector("title")?.textContent
-  if (title) {
-    document.title = title
+  if (stackedSlugs.length > 0) {
+    url.searchParams.set("stacked", stackedSlugs.join(","))
   } else {
-    const h1 = document.querySelector("h1")
-    title = h1?.innerText ?? h1?.textContent ?? url.pathname
-  }
-  if (announcer.textContent !== title) {
-    announcer.textContent = title
-  }
-  announcer.dataset.persist = ""
-  html.body.appendChild(announcer)
-
-  // morph body
-  micromorph(document.body, html.body)
-
-  // scroll into place and add history
-  if (!isBack) {
-    if (url.hash) {
-      const el = document.getElementById(decodeURIComponent(url.hash.substring(1)))
-      el?.scrollIntoView()
-    } else {
-      window.scrollTo({ top: 0 })
-    }
+    url.searchParams.delete("stacked")
   }
 
-  // now, patch head, re-executing scripts
-  const elementsToRemove = document.head.querySelectorAll(":not([data-persist])")
-  elementsToRemove.forEach((el) => el.remove())
-  const elementsToAdd = html.head.querySelectorAll(":not([data-persist])")
-  elementsToAdd.forEach((el) => document.head.appendChild(el))
-
-  // delay setting the url until now
-  // at this point everything is loaded so changing the url should resolve to the correct addresses
-  if (!isBack) {
-    history.pushState({}, "", url)
-  }
-
-  notifyNav(getFullSlug(window))
-  delete announcer.dataset.persist
+  history.pushState({}, "", url.toString())
 }
 
-async function navigate(url: URL, isBack: boolean = false) {
-  if (isNavigating) return
-  isNavigating = true
+async function appendPane(url: URL, scroll: boolean = true, replaceFromIndex?: number) {
+  const container = getContainer()
+  if (!container) return
+
+  let panes = getPanes()
+
+  // Prune panes if replaceFromIndex is provided
+  if (replaceFromIndex !== undefined && replaceFromIndex >= 0 && replaceFromIndex < panes.length) {
+    const panesToRemove = panes.slice(replaceFromIndex + 1)
+    panesToRemove.forEach(p => p.remove())
+    panes = getPanes()
+  }
+
+  // Optimistic check using URL
+  const existing = panes.find(p => (p as HTMLElement).dataset.url === url.href)
+  if (existing) {
+    if (scroll) existing.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+    return
+  }
+
+  // Fetch content
   try {
-    await _navigate(url, isBack)
+    const res = await fetchCanonical(url)
+    if (!res.ok) throw new Error("Failed to load")
+
+    const text = await res.text()
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(text, "text/html")
+    normalizeRelativeURLs(doc, url)
+
+    const newContent = doc.querySelector(PANE_SELECTOR)
+    if (!newContent) {
+      console.warn("No sliding pane content found in response")
+      window.location.assign(url)
+      return
+    }
+
+    const newPane = newContent.cloneNode(true) as HTMLElement
+
+    // Set metadata on pane
+    const pageSlug = doc.body.dataset.slug
+    newPane.dataset.slug = pageSlug
+    newPane.dataset.url = url.href
+
+    // Check for duplicates by slug after fetch (authoritative)
+    const existingBySlug = panes.find(p => (p as HTMLElement).dataset.slug === pageSlug)
+    if (existingBySlug) {
+      if (scroll) existingBySlug.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+      return
+    }
+
+    // Add spine - PREPEND so it comes before content in Flex
+    const title = doc.title || doc.querySelector("h1")?.innerText
+    const spine = createSpine(doc, title)
+    newPane.prepend(spine)
+
+    container.appendChild(newPane)
+    updatePanePositions() // Update sticky offsets
+
+    const event = new CustomEvent("nav", { detail: { url: pageSlug } })
+    document.dispatchEvent(event)
+
+    if (scroll) {
+      newPane.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+    }
+
+    updateUrlState()
+
   } catch (e) {
     console.error(e)
     window.location.assign(url)
-  } finally {
-    isNavigating = false
   }
 }
 
-window.spaNavigate = navigate
+// Initialize
+function init() {
+  if (typeof window === "undefined") return
 
-function createRouter() {
-  if (typeof window !== "undefined") {
-    window.addEventListener("click", async (event) => {
-      const { url } = getOpts(event) ?? {}
-      // dont hijack behaviour, just let browser act normally
-      if (!url || event.ctrlKey || event.metaKey) return
+  // Set initial pane attributes
+  const container = getContainer()
+  const initialPane = container?.querySelector(PANE_SELECTOR) as HTMLElement
+  if (initialPane) {
+    initialPane.dataset.slug = document.body.dataset.slug
+    initialPane.dataset.url = window.location.href
+
+    const spine = createSpine(document)
+    initialPane.prepend(spine) // Prepended here too
+
+    updatePanePositions()
+  }
+
+  // Load stacked panes from URL
+  const params = new URLSearchParams(window.location.search)
+  const stacked = params.get("stacked")
+  if (stacked) {
+    const slugs = stacked.split(",")
+    const loadStacked = async () => {
+      for (const slug of slugs) {
+        const url = new URL(slug, window.location.origin)
+        await appendPane(url, false)
+      }
+      const panes = getPanes()
+      if (panes.length > 0) {
+        panes[panes.length - 1].scrollIntoView({ inline: "center", block: "start" })
+      }
+    }
+    loadStacked()
+  }
+
+  // Scroll Listener for Obscured State
+  const containerEl = getContainer()
+  if (containerEl) {
+    containerEl.addEventListener("scroll", () => {
+      checkObscured()
+    }, { passive: true })
+    window.addEventListener("resize", () => {
+      checkObscured()
+    }, { passive: true })
+  }
+
+  // Event Listeners
+  window.addEventListener("click", async (event) => {
+    const target = event.target as Element
+    const a = target.closest("a")
+    if (!a) return
+
+    // Ignore if special keys, target blank, or non-internal
+    if (event.ctrlKey || event.metaKey || a.target === "_blank") return
+    if (!isLocalUrl(a.href)) return
+    if ("routerIgnore" in a.dataset) return
+
+    const url = new URL(a.href)
+
+    if (url.pathname === window.location.pathname && url.hash) {
+      return // Let browser handle hash
+    }
+
+    if (url.href === window.location.href) {
       event.preventDefault()
-
-      if (isSamePage(url) && url.hash) {
-        const el = document.getElementById(decodeURIComponent(url.hash.substring(1)))
-        el?.scrollIntoView()
-        history.pushState({}, "", url)
-        return
-      }
-
-      navigate(url, false)
-    })
-
-    window.addEventListener("popstate", (event) => {
-      const { url } = getOpts(event) ?? {}
-      if (window.location.hash && window.location.pathname === url?.pathname) return
-      navigate(new URL(window.location.toString()), true)
       return
-    })
-  }
-
-  return new (class Router {
-    go(pathname: RelativeURL) {
-      const url = new URL(pathname, window.location.toString())
-      return navigate(url, false)
     }
 
-    back() {
-      return window.history.back()
+    event.preventDefault()
+
+    // Find which pane this click came from
+    const sourcePane = a.closest(PANE_SELECTOR)
+    let replaceIndex = undefined
+    if (sourcePane) {
+      const panes = getPanes()
+      replaceIndex = panes.indexOf(sourcePane as Element)
     }
 
-    forward() {
-      return window.history.forward()
-    }
-  })()
+    await appendPane(url, true, replaceIndex)
+  })
+
+  // Popstate
+  window.addEventListener("popstate", () => {
+    window.location.reload()
+  })
+
+  // Expose for debugging
+  window.spaNavigate = (url) => appendPane(url instanceof URL ? url : new URL(url, window.location.origin))
+
+  // Initial check
+  checkObscured()
 }
 
-createRouter()
-notifyNav(getFullSlug(window))
-
-if (!customElements.get("route-announcer")) {
-  const attrs = {
-    "aria-live": "assertive",
-    "aria-atomic": "true",
-    style:
-      "position: absolute; left: 0; top: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; width: 1px; height: 1px",
-  }
-
-  customElements.define(
-    "route-announcer",
-    class RouteAnnouncer extends HTMLElement {
-      constructor() {
-        super()
-      }
-      connectedCallback() {
-        for (const [key, value] of Object.entries(attrs)) {
-          this.setAttribute(key, value)
-        }
-      }
-    },
-  )
-}
+init()
