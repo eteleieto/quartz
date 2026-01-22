@@ -191,15 +191,18 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
   const container = searchElement.querySelector(".search-container") as HTMLElement
   if (!container) return
 
-  const sidebar = container.closest(".sidebar") as HTMLElement | null
+  // Move container to body to escape navbar stacking context
+  if (container.parentElement !== document.body) {
+    document.body.appendChild(container)
+  }
 
   const searchButton = searchElement.querySelector(".search-button") as HTMLButtonElement
   if (!searchButton) return
 
-  const searchBar = searchElement.querySelector(".search-bar") as HTMLInputElement
+  const searchBar = container.querySelector(".search-bar") as HTMLInputElement
   if (!searchBar) return
 
-  const searchLayout = searchElement.querySelector(".search-layout") as HTMLElement
+  const searchLayout = container.querySelector(".search-layout") as HTMLElement
   if (!searchLayout) return
 
   const idDataMap = Object.keys(data) as FullSlug[]
@@ -223,7 +226,6 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
   function hideSearch() {
     container.classList.remove("active")
     searchBar.value = "" // clear the input when we dismiss the search
-    if (sidebar) sidebar.style.zIndex = ""
     removeAllChildren(results)
     if (preview) {
       removeAllChildren(preview)
@@ -235,7 +237,6 @@ async function setupSearch(searchElement: Element, currentSlug: FullSlug, data: 
 
   function showSearch(searchTypeNew: SearchType) {
     searchType = searchTypeNew
-    if (sidebar) sidebar.style.zIndex = "1"
     container.classList.add("active")
     searchBar.focus()
   }

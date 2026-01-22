@@ -1,12 +1,35 @@
 @use "../../styles/variables.scss" as *;
 
 .graph {
-  & > h3 {
+  &>h3 {
     font-size: 1rem;
     margin: 0;
   }
 
-  & > .graph-outer {
+  &.icon-only {
+    h3 {
+      display: none;
+    }
+
+    .graph-outer {
+      height: auto;
+      width: auto;
+      border: none;
+      margin: 0;
+      background: transparent;
+
+      .global-graph-icon {
+        position: static;
+        width: 30px;
+        height: 30px;
+        opacity: 1;
+        color: var(--darkgray);
+        margin: 0;
+      }
+    }
+  }
+
+  &>.graph-outer {
     border-radius: 5px;
     border: 1px solid var(--lightgray);
     box-sizing: border-box;
@@ -15,7 +38,7 @@
     position: relative;
     overflow: hidden;
 
-    & > .global-graph-icon {
+    &>.global-graph-icon {
       cursor: pointer;
       background: none;
       border: none;
@@ -32,42 +55,45 @@
       background-color: transparent;
       transition: background-color 0.5s ease;
       cursor: pointer;
+
       &:hover {
         background-color: var(--lightgray);
       }
     }
   }
+}
 
-  & > .global-graph-outer {
+// Global graph modal - separate from .graph to work when portalled to body
+.global-graph-outer {
+  position: fixed;
+  z-index: 999998;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100%;
+  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.3);
+  display: none;
+  overflow: hidden;
+
+  &.active {
+    display: inline-block;
+  }
+
+  .global-graph-container {
+    border: 1px solid var(--lightgray);
+    background-color: #ffffff;
+    border-radius: 5px;
+    box-sizing: border-box;
     position: fixed;
-    z-index: 9999;
-    left: 0;
-    top: 0;
-    width: 100vw;
-    height: 100%;
-    backdrop-filter: blur(4px);
-    display: none;
-    overflow: hidden;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    height: 80vh;
+    width: 80vw;
 
-    &.active {
-      display: inline-block;
-    }
-
-    & > .global-graph-container {
-      border: 1px solid var(--lightgray);
-      background-color: var(--light);
-      border-radius: 5px;
-      box-sizing: border-box;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      height: 80vh;
-      width: 80vw;
-
-      @media all and not ($desktop) {
-        width: 90%;
-      }
+    @media all and not ($desktop) {
+      width: 90%;
     }
   }
 }

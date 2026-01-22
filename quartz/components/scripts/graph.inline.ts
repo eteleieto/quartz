@@ -596,14 +596,18 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
   })
 
   const containers = [...document.getElementsByClassName("global-graph-outer")] as HTMLElement[]
+  
+  // Move containers to body to escape navbar stacking context
+  for (const container of containers) {
+    if (container.parentElement !== document.body) {
+      document.body.appendChild(container)
+    }
+  }
+
   async function renderGlobalGraph() {
     const slug = getFullSlug(window)
     for (const container of containers) {
       container.classList.add("active")
-      const sidebar = container.closest(".sidebar") as HTMLElement
-      if (sidebar) {
-        sidebar.style.zIndex = "1"
-      }
 
       const graphContainer = container.querySelector(".global-graph-container") as HTMLElement
       registerEscapeHandler(container, hideGlobalGraph)
@@ -617,10 +621,6 @@ document.addEventListener("nav", async (e: CustomEventMap["nav"]) => {
     cleanupGlobalGraphs()
     for (const container of containers) {
       container.classList.remove("active")
-      const sidebar = container.closest(".sidebar") as HTMLElement
-      if (sidebar) {
-        sidebar.style.zIndex = ""
-      }
     }
   }
 

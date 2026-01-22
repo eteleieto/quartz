@@ -51,3 +51,4 @@ export {
   Flex,
   ConditionalRender,
 }
+export { default as Logo } from "./Logo"

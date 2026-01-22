@@ -3,9 +3,14 @@ import { fetchCanonical } from "./util"
 
 // Sliding Panes Router Implementation
 
+// Cleanup system for event listeners (required by all Quartz components)
+const cleanupFns: Set<(...args: any[]) => void> = new Set()
+window.addCleanup = (fn) => cleanupFns.add(fn)
+
 const CONTAINER_SELECTOR = ".center"
 const PANE_SELECTOR = ".sliding-pane"
 const PANE_WIDTH = 40 // px, width of the spine
+const MOBILE_BREAKPOINT = 800
 
 function getContainer() {
   return document.querySelector(CONTAINER_SELECTOR)
@@ -14,6 +19,30 @@ function getContainer() {
 function getPanes() {
   const container = getContainer()
   return container ? Array.from(container.querySelectorAll(PANE_SELECTOR)) : []
+}
+
+function isMobile() {
+  return window.innerWidth <= MOBILE_BREAKPOINT
+}
+
+// Custom horizontal-only scroll function to avoid vertical displacement from scrollIntoView
+function scrollPaneIntoView(pane: Element, behavior: ScrollBehavior = "smooth") {
+  const container = getContainer() as HTMLElement
+  if (!container || !pane) return
+
+  const containerRect = container.getBoundingClientRect()
+  const paneRect = pane.getBoundingClientRect()
+
+  // Calculate where we need to scroll to center the pane horizontally
+  const paneCenter = paneRect.left + paneRect.width / 2
+  const containerCenter = containerRect.left + containerRect.width / 2
+  const scrollOffset = paneCenter - containerCenter
+
+  container.scrollBy({
+    left: scrollOffset,
+    top: 0, // Explicitly no vertical scrolling
+    behavior: behavior
+  })
 }
 
 function updatePanePositions() {
@@ -37,7 +66,7 @@ function createSpine(doc: Document | HTMLElement, title?: string) {
   spine.onclick = (e) => {
     e.stopPropagation()
     const pane = (e.target as HTMLElement).closest(PANE_SELECTOR)
-    pane?.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+    if (pane) scrollPaneIntoView(pane)
   }
   return spine
 }
@@ -118,7 +147,7 @@ async function appendPane(url: URL, scroll: boolean = true, replaceFromIndex?: n
   // Optimistic check using URL
   const existing = panes.find(p => (p as HTMLElement).dataset.url === url.href)
   if (existing) {
-    if (scroll) existing.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+    if (scroll) scrollPaneIntoView(existing)
     return
   }
 
@@ -149,7 +178,7 @@ async function appendPane(url: URL, scroll: boolean = true, replaceFromIndex?: n
     // Check for duplicates by slug after fetch (authoritative)
     const existingBySlug = panes.find(p => (p as HTMLElement).dataset.slug === pageSlug)
     if (existingBySlug) {
-      if (scroll) existingBySlug.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+      if (scroll) scrollPaneIntoView(existingBySlug)
       return
     }
 
@@ -165,7 +194,7 @@ async function appendPane(url: URL, scroll: boolean = true, replaceFromIndex?: n
     document.dispatchEvent(event)
 
     if (scroll) {
-      newPane.scrollIntoView({ behavior: "smooth", inline: "center", block: "start" })
+      scrollPaneIntoView(newPane)
     }
 
     updateUrlState()
@@ -191,24 +220,29 @@ function init() {
     initialPane.prepend(spine) // Prepended here too
 
     updatePanePositions()
+
+    const event = new CustomEvent("nav", { detail: { url: document.body.dataset.slug } })
+    document.dispatchEvent(event)
   }
 
-  // Load stacked panes from URL
-  const params = new URLSearchParams(window.location.search)
-  const stacked = params.get("stacked")
-  if (stacked) {
-    const slugs = stacked.split(",")
-    const loadStacked = async () => {
-      for (const slug of slugs) {
-        const url = new URL(slug, window.location.origin)
-        await appendPane(url, false)
+  // Load stacked panes from URL (desktop only)
+  if (!isMobile()) {
+    const params = new URLSearchParams(window.location.search)
+    const stacked = params.get("stacked")
+    if (stacked) {
+      const slugs = stacked.split(",")
+      const loadStacked = async () => {
+        for (const slug of slugs) {
+          const url = new URL(slug, window.location.origin)
+          await appendPane(url, false)
+        }
+        const panes = getPanes()
+        if (panes.length > 0) {
+          scrollPaneIntoView(panes[panes.length - 1], "instant")
+        }
       }
-      const panes = getPanes()
-      if (panes.length > 0) {
-        panes[panes.length - 1].scrollIntoView({ inline: "center", block: "start" })
-      }
+      loadStacked()
     }
-    loadStacked()
   }
 
   // Scroll Listener for Obscured State
@@ -245,6 +279,12 @@ function init() {
     }
 
     event.preventDefault()
+
+    // On mobile, use traditional navigation (no stacking)
+    if (isMobile()) {
+      window.location.assign(url)
+      return
+    }
 
     // Find which pane this click came from
     const sourcePane = a.closest(PANE_SELECTOR)

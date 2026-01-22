@@ -1,3 +1,251 @@
 @use "./base.scss";
 
-// put your custom CSS here!
+/* PP Editorial New Font Family */
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-Ultralight.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-UltralightItalic.otf") format("opentype");
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-Italic.otf") format("opentype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-Ultrabold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial New";
+  src: url("/static/fonts/PPEditorialNew-UltraboldItalic.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* PP Editorial Sans Font Family (for headers/UI) */
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-Ultralight.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-UltralightItalic.otf") format("opentype");
+  font-weight: 200;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-Medium.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-Ultrabold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-Ultrabold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PP Editorial Sans";
+  src: url("/static/fonts/PPEditorialSans-UltraboldItalic.otf") format("opentype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Advent Pro Font Family (for logo) */
+@font-face {
+  font-family: "Advent Pro";
+  src: url("/static/fonts/AdventPro-VariableFont_wdth,wght.ttf") format("truetype");
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Advent Pro";
+  src: url("/static/fonts/AdventPro-Italic-VariableFont_wdth,wght.ttf") format("truetype");
+  font-style: italic;
+  font-display: swap;
+}
+
+// Custom font styling to match garnet-site
+:root {
+  --bodyFont: "PP Editorial New", Georgia, "Times New Roman", serif;
+  --headerFont: "PP Editorial Sans", Georgia, "Times New Roman", sans-serif;
+  --uiFont: "PP Editorial Sans", Georgia, "Times New Roman", sans-serif;
+}
+
+body {
+  font-weight: 200;
+}
+
+// Ensure links use lighter weight
+a {
+  font-weight: 200;
+}
+
+// Headers use PP Editorial Sans with regular weight (maps to Medium)
+h1, h2, h3, h4, h5, h6 {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// More specific selectors for article headers
+article h1,
+article h2,
+article h3,
+article h4,
+article h5,
+article h6,
+.article-title,
+.page-title {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// Table headers also use sans
+thead {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// Strong/bold text uses bolder weight
+strong, b {
+  font-weight: 700;
+}
+
+// UI elements use sans font
+.search .search-button {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 200 !important;
+  
+  p {
+    font-weight: 200 !important;
+  }
+}
+
+.search-container .search-space > input {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 200 !important;
+  
+  &::placeholder {
+    font-weight: 200 !important;
+  }
+}
+
+.search-container .result-card h3 {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// Sliding pane spine uses sans
+.sliding-pane-spine {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// TOC uses sans
+.toc {
+  font-family: "PP Editorial Sans", sans-serif;
+  font-weight: 400;
+  
+  .depth-0 > a,
+  .depth-1 > a,
+  .depth-2 > a,
+  .depth-3 > a {
+    font-family: "PP Editorial Sans", sans-serif;
+    font-weight: 400;
+  }
+}
+
+// Explorer uses sans
+.explorer {
+  font-family: "PP Editorial Sans", sans-serif;
+  font-weight: 400;
+}
+
+// Backlinks header uses sans
+.backlinks h3 {
+  font-family: "PP Editorial Sans", sans-serif !important;
+  font-weight: 400 !important;
+}
+
+// Style the page footer (backlinks section) inside panes
+.page-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--lightgray);
+  // Add bottom margin for scroll space
+  margin-bottom: 6rem;
+  
+  .backlinks {
+    h3 {
+      font-size: 0.9rem;
+      color: var(--gray);
+      margin-bottom: 0.5rem;
+    }
+    
+    ul {
+      padding-left: 1rem;
+      margin: 0;
+      
+      li {
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+      }
+    }
+  }
+}

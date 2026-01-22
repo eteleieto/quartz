@@ -35,6 +35,8 @@
     font-family: var(--bodyFont);
     border: 1px solid var(--lightgray);
     background-color: var(--light);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), url("/static/paper.png");
+    background-repeat: repeat;
     border-radius: 5px;
     box-shadow: 6px 6px 36px 0 rgba(0, 0, 0, 0.25);
     overflow: auto;
